@@ -404,10 +404,17 @@ void DS2764::dspGetBatteryCapacity() {
         }
         else {
             // these 4 bytes may not have been initialized
-            // with the battery capacity yet, use the 
-            // 100 mAh as a default
-            Serial.println("Defaulting Battery Capacity to 999 mAH");
-            miBatteryCapacity = 999;
+            // with the battery capacity yet, use the
+            // 10 mAh as a default
+            //Serial.println("Defaulting Battery Capacity to 999 mAH");
+            miBatteryCapacity = 10;
+        }
+        
+        if(miBatteryCapacity < 1) {
+            // always set capacity to 1 if it's less than 1
+            // this prevents divide by zero problems when
+            // calculating remaining battery percent.
+        	miBatteryCapacity = 1;
         }
     }
 }
