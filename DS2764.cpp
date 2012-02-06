@@ -1,7 +1,14 @@
 // DS2764.cpp
+// DMT 2/5/2012 - Replacing Wire.send and Wire.receive with Wire.write and Wire.read for Arduino 1.0 Compatibility
 #include <Wire.h>
 #include <avr/pgmspace.h>
-#include <WProgram.h>
+
+#if defined(ARDUINO) && ARDUINO >= 100
+#include "Arduino.h"
+#else
+#include "WProgram.h"
+#endif
+
 #include <util/delay.h>
 #include <stdlib.h>
 
@@ -207,15 +214,27 @@ void DS2764::dsResetProtection(int aiOn) {
     //Serial.println(lowByte(dsProtect), HEX);
     
     Wire.beginTransmission(DS_ADDRESS);
+    
+#if defined(ARDUINO) && ARDUINO >= 100
+    Wire.write((uint8_t)DS_PROTECTION_REGISTER);
+    Wire.write(lowByte(dsProtect));
+#else
     Wire.send(DS_PROTECTION_REGISTER);
-    Wire.send(lowByte(dsProtect));      
+    Wire.send(lowByte(dsProtect));
+#endif
+
     Wire.endTransmission();
     //delay(10);
     Wire.requestFrom(DS_ADDRESS, 2);
     if(1 <= Wire.available())                    //if two bytes were received 
     { 
-        miProtect = Wire.receive();
+#if defined(ARDUINO) && ARDUINO >= 100
+		miProtect = Wire.read();
+        miStatus  = Wire.read(); 
+#else
+		miProtect = Wire.receive();
         miStatus  = Wire.receive(); 
+#endif        
     }
     else {
       //  Serial.println("Nothing received from resetdsProtection Request");
@@ -235,7 +254,6 @@ void DS2764::dsResetProtection(int aiOn) {
 
 
 
-
 void DS2764::dsSetAccumCurrent(int iNewVal) {
   
     // Convert our new value in mAh to units of .25mAh
@@ -248,11 +266,19 @@ void DS2764::dsSetAccumCurrent(int iNewVal) {
         
     // Send Data to Accumulated Current Variable
     Wire.beginTransmission(DS_ADDRESS);
+    
+#if defined(ARDUINO) && ARDUINO >= 100
+    Wire.write(DS_ACC_CURRENT_REG_HI);
+    delay(5);
+    Wire.write(hiByte);
+    Wire.write(loByte); 
+#else    
     Wire.send(DS_ACC_CURRENT_REG_HI);
     delay(5);
-        
     Wire.send(hiByte);
-    Wire.send(loByte);    
+    Wire.send(loByte); 
+#endif 
+
     Wire.endTransmission();
     
     miAccCurrent = iNewVal;
@@ -279,25 +305,45 @@ void DS2764::dsSetBatteryCapacity(int aiValue) {
     // This automatically happens at Power Up, so this
     // step probably isn't necessary.
     Wire.beginTransmission(DS_ADDRESS);
+    
+#if defined(ARDUINO) && ARDUINO >= 100
+    Wire.write(DS_FUNCTION_REGISTER);        // Write value to Function Command Address
+    Wire.write(DS_RECALL_EEPROM_BLK_0);      // Request refresh of Block 0 Shadow RAM from EEPROM
+#else    
     Wire.send(DS_FUNCTION_REGISTER);        // Write value to Function Command Address
     Wire.send(DS_RECALL_EEPROM_BLK_0);      // Request refresh of Block 0 Shadow RAM from EEPROM
+#endif
+
     Wire.endTransmission();
     delay(500);
         
         
     // Read first 4 bytes of Block 0 Shadow RAM
     Wire.beginTransmission(DS_ADDRESS);
-    Wire.send(DS_BATTERY_CAP_ADDR);
+    
+#if defined(ARDUINO) && ARDUINO >= 100
+	Wire.write(DS_BATTERY_CAP_ADDR);
+#else
+	Wire.send(DS_BATTERY_CAP_ADDR);
+#endif	
+    
     Wire.endTransmission();
     delay(100);
     Wire.requestFrom(DS_ADDRESS, 4);
 
     if(4 <= Wire.available()) { 
+#if defined(ARDUINO) && ARDUINO >= 100
+        bHi     = Wire.read();
+        bLow    = Wire.read();
+        bCheck  = Wire.read();
+        bFill   = Wire.read();
+#else
         bHi     = Wire.receive();
         bLow    = Wire.receive();
         bCheck  = Wire.receive();
         bFill   = Wire.receive();
-    }
+#endif
+	}
 
     // Calculate our checksum by OR'ing the hi and low
     // bytes of the battery capacity.
@@ -312,11 +358,21 @@ void DS2764::dsSetBatteryCapacity(int aiValue) {
     // Write the data back to Address 0x20, which is the
     // "shadow RAM" for EEPROM Block 0.    
     Wire.beginTransmission(DS_ADDRESS);
-    Wire.send(DS_BATTERY_CAP_ADDR);
+    
+#if defined(ARDUINO) && ARDUINO >= 100
+	Wire.write(DS_BATTERY_CAP_ADDR);
+    Wire.write(highByte(aiValue));
+    Wire.write(lowByte(aiValue));
+    Wire.write(bCheck);
+    Wire.write(bFill);
+#else
+	Wire.send(DS_BATTERY_CAP_ADDR);
     Wire.send(highByte(aiValue));
     Wire.send(lowByte(aiValue));
     Wire.send(bCheck);
     Wire.send(bFill);
+#endif
+
     Wire.endTransmission();
     delay(10);
         
@@ -324,8 +380,15 @@ void DS2764::dsSetBatteryCapacity(int aiValue) {
     // Block 0, we need to ask the Gas Gauge to Save the
     // Block 0 Shadow RAM back to the EEPROM memory.    
     Wire.beginTransmission(DS_ADDRESS);
-    Wire.send(DS_FUNCTION_REGISTER);        // Write value to Function Command Address
+    
+#if defined(ARDUINO) && ARDUINO >= 100
+	Wire.write(DS_FUNCTION_REGISTER);        // Write value to Function Command Address
+    Wire.write(DS_SAVE_EEPROM_BLK_0);        // Request Write of Block 0 Shadow RAM back into EEPROM
+#else
+	Wire.send(DS_FUNCTION_REGISTER);        // Write value to Function Command Address
     Wire.send(DS_SAVE_EEPROM_BLK_0);        // Request Write of Block 0 Shadow RAM back into EEPROM
+#endif
+
     Wire.endTransmission();
     delay(10);
         
@@ -386,16 +449,29 @@ void DS2764::dspGetBatteryCapacity() {
     // indicate that this is memory that's been set by this program
     // 
     Wire.beginTransmission(DS_ADDRESS);
-    Wire.send(DS_BATTERY_CAP_ADDR);
-    Wire.endTransmission();
+    
+#if defined(ARDUINO) && ARDUINO >= 100
+	Wire.write(DS_BATTERY_CAP_ADDR);
+#else
+	Wire.send(DS_BATTERY_CAP_ADDR);
+#endif
+
+	Wire.endTransmission();
     
     Wire.requestFrom(DS_ADDRESS, 4);
     
     if(4 <= Wire.available()) { 
-        bHi     = Wire.receive();
+#if defined(ARDUINO) && ARDUINO >= 100
+		bHi     = Wire.read();
+        bLow    = Wire.read();
+        bCheck  = Wire.read();
+        bFill   = Wire.read();  // should be set to 0xA
+#else
+		bHi     = Wire.receive();
         bLow    = Wire.receive();
         bCheck  = Wire.receive();
         bFill   = Wire.receive();  // should be set to 0xA
+#endif
         
         if ((bHi ^ bLow == bCheck) && bFill == 0xA) {
             // checksum matches and our filler character
@@ -448,12 +524,22 @@ void DS2764::dspGetPowerSwitch(void) {
 
     // Read Protection Register
     Wire.beginTransmission(DS_ADDRESS);
+#if defined(ARDUINO) && ARDUINO >= 100
+    Wire.write(DS_SPECIAL_FEATURE_REG);
+#else    
     Wire.send(DS_SPECIAL_FEATURE_REG);
+#endif
+
     Wire.endTransmission();
     Wire.requestFrom(DS_ADDRESS, 1);
     if(1 <= Wire.available()) {                 // if one byte was received 
 
-        dsSpecial = Wire.receive();
+
+#if defined(ARDUINO) && ARDUINO >= 100
+		dsSpecial = Wire.read();
+#else
+		dsSpecial = Wire.receive();
+#endif
 
         if (dsSpecial & DS00PS) { 
             //Serial.println("PsON");
@@ -503,13 +589,24 @@ void DS2764::dspGetProtection(void) {
 
     // Read Protection Register
     Wire.beginTransmission(DS_ADDRESS);
-    Wire.send(DS_PROTECTION_REGISTER);
+    
+#if defined(ARDUINO) && ARDUINO >= 100
+	Wire.write((uint8_t)DS_PROTECTION_REGISTER);
+#else
+	Wire.send(DS_PROTECTION_REGISTER);
+#endif
+
     Wire.endTransmission();
     Wire.requestFrom(DS_ADDRESS, 2);
     if(2 <= Wire.available()) {     // if two bytes were received 
     
-        miProtect = Wire.receive();
+#if defined(ARDUINO) && ARDUINO >= 100
+		miProtect = Wire.read();
+        miStatus  = Wire.read();
+#else
+		miProtect = Wire.receive();
         miStatus  = Wire.receive();
+#endif        
         
         /*
         Serial.println("from getdsProtection");
@@ -616,17 +713,31 @@ void DS2764::dspGetTemp(void) {
     
     // Read Voltage Register
     Wire.beginTransmission(DS_ADDRESS);
-    Wire.send(DS_TEMP_REG_HIBYTE);
+
+#if defined(ARDUINO) && ARDUINO >= 100
+	Wire.write(DS_TEMP_REG_HIBYTE);
+#else
+	Wire.send(DS_TEMP_REG_HIBYTE);
+#endif
+
     Wire.endTransmission();
 
     Wire.requestFrom(DS_ADDRESS, 2);
     
     if(2 <= Wire.available()) {     // if two bytes were received 
-        reading = Wire.receive();   // receive high byte (overwrites previous reading) 
+    
+#if defined(ARDUINO) && ARDUINO >= 100
+		reading = Wire.read();   // receive high byte (overwrites previous reading) 
+        reading = reading << 8;     // shift high byte to be high 8 bits 
+        reading += Wire.read();  // receive low byte as lower 8 bits 
+        reading = reading >> 5;
+#else
+		reading = Wire.receive();   // receive high byte (overwrites previous reading) 
         reading = reading << 8;     // shift high byte to be high 8 bits 
         reading += Wire.receive();  // receive low byte as lower 8 bits 
         reading = reading >> 5;
-         
+#endif
+
         mfTempC = reading * 0.125;
         
         // Convert temperature to Fahrenheit        
@@ -665,7 +776,13 @@ void DS2764::dspGetVoltageAndCurrent(void) {
 
     // Read Voltage Register
     Wire.beginTransmission(DS_ADDRESS);
-    Wire.send(DS_VOLT_REG_HIBYTE);
+    
+#if defined(ARDUINO) && ARDUINO >= 100
+	Wire.write(DS_VOLT_REG_HIBYTE);
+#else
+	Wire.send(DS_VOLT_REG_HIBYTE);
+#endif
+
     Wire.endTransmission();
 
     // read 6 bytes, hi and lo byte for voltage
@@ -675,7 +792,22 @@ void DS2764::dspGetVoltageAndCurrent(void) {
     delay(4);
     if(6 <= Wire.available())     // if six bytes were received 
     { 
-        voltage = Wire.receive();
+#if defined(ARDUINO) && ARDUINO >= 100
+		voltage = Wire.read();
+        voltage = voltage << 8;
+        voltage += Wire.read();
+        voltage = voltage >> 5;
+        voltage = voltage * 4.88;
+        
+        current = Wire.read();
+        current = current << 8;
+        current += Wire.read();
+        
+        acurrent = Wire.read();
+        acurrent = acurrent << 8;
+        acurrent += Wire.read();
+#else
+		voltage = Wire.receive();
         voltage = voltage << 8;
         voltage += Wire.receive();
         voltage = voltage >> 5;
@@ -688,7 +820,8 @@ void DS2764::dspGetVoltageAndCurrent(void) {
         acurrent = Wire.receive();
         acurrent = acurrent << 8;
         acurrent += Wire.receive();
-        
+#endif
+
         if ((current & 0x80) == 0x80) {
             current = (current ^ 0xFFFFFFFF);
             current = current * -1;
@@ -763,14 +896,26 @@ void DS2764::dspSetPowerSwitchOn(void) {
 
     // Read Protection Register
     Wire.beginTransmission(DS_ADDRESS);
-    Wire.send(DS_SPECIAL_FEATURE_REG);
+
+#if defined(ARDUINO) && ARDUINO >= 100
+	Wire.write(DS_SPECIAL_FEATURE_REG);
+    Wire.write(DS00PS);
+#else
+	Wire.send(DS_SPECIAL_FEATURE_REG);
     Wire.send(DS00PS);
-    Wire.endTransmission();
+#endif
+
+	Wire.endTransmission();
     delay(10);
     Wire.requestFrom(DS_ADDRESS, 1);
     if(1 <= Wire.available())     // if one byte was received 
     { 
-        dsSpecial = Wire.receive();
+
+#if defined(ARDUINO) && ARDUINO >= 100
+		dsSpecial = Wire.read();
+#else
+		dsSpecial = Wire.receive();
+#endif
 
         if (dsSpecial & DS00PS) { 
             //Serial.println("PsSetON");
@@ -822,22 +967,40 @@ void DS2764::dspSetSleepMode(int aiValue) {
         
     // Recall EEPROM Block 1 Data to Shadow RAM
     Wire.beginTransmission(DS_ADDRESS);
-    Wire.send(DS_FUNCTION_REGISTER);            // Write value to Function Command Address
+
+#if defined(ARDUINO) && ARDUINO >= 100
+	Wire.write(DS_FUNCTION_REGISTER);            // Write value to Function Command Address
+    Wire.write(DS_RECALL_EEPROM_BLK_1);          // Request refresh of Block 1 Shadow RAM from EEPROM
+#else
+	Wire.send(DS_FUNCTION_REGISTER);            // Write value to Function Command Address
     Wire.send(DS_RECALL_EEPROM_BLK_1);          // Request refresh of Block 1 Shadow RAM from EEPROM
-    Wire.endTransmission();
+#endif
+
+	Wire.endTransmission();
     delay(500);
         
         
     // Read second byte of Block 1 Shadow RAM
     Wire.beginTransmission(DS_ADDRESS);
-    Wire.send(DS_SLEEP_MODE_ADDR);
-    Wire.endTransmission();
+
+#if defined(ARDUINO) && ARDUINO >= 100
+	Wire.write(DS_SLEEP_MODE_ADDR);
+#else
+	Wire.send(DS_SLEEP_MODE_ADDR);
+#endif
+
+	Wire.endTransmission();
     delay(100);
     Wire.requestFrom(DS_ADDRESS, 1);
 
     if(1 <= Wire.available()) { 
-        iShadow = Wire.receive();
-        //Serial.print("BEFORE Address 31h, Shadow Block 1 Byte 1: ");
+
+#if defined(ARDUINO) && ARDUINO >= 100
+		iShadow = Wire.read();
+#else
+		iShadow = Wire.receive();
+#endif
+		//Serial.print("BEFORE Address 31h, Shadow Block 1 Byte 1: ");
         //Serial.println(iShadow, HEX);
         
         //Serial.print("BEFORE giStatus Variable from Address 02h: ");
@@ -872,17 +1035,31 @@ void DS2764::dspSetSleepMode(int aiValue) {
 //#endif
         
     Wire.beginTransmission(DS_ADDRESS);
-    Wire.send(DS_SLEEP_MODE_ADDR);
+
+#if defined(ARDUINO) && ARDUINO >= 100
+	Wire.write(DS_SLEEP_MODE_ADDR);
+    Wire.write(iShadow);
+#else
+	Wire.send(DS_SLEEP_MODE_ADDR);
     Wire.send(iShadow);
-    Wire.endTransmission();
+#endif
+
+	Wire.endTransmission();
     delay(10);
         
         
     // copy data back into EEPROM
     Wire.beginTransmission(DS_ADDRESS);
-    Wire.send(DS_FUNCTION_REGISTER);        // Write value to Function Command Address
+
+#if defined(ARDUINO) && ARDUINO >= 100
+	Wire.write(DS_FUNCTION_REGISTER);        // Write value to Function Command Address
+    Wire.write(DS_SAVE_EEPROM_BLK_1);        // Request Write of Block 1 Shadow RAM back into EEPROM
+#else
+	Wire.send(DS_FUNCTION_REGISTER);        // Write value to Function Command Address
     Wire.send(DS_SAVE_EEPROM_BLK_1);        // Request Write of Block 1 Shadow RAM back into EEPROM
-    Wire.endTransmission();
+#endif
+
+	Wire.endTransmission();
     delay(1000);
     
     // now, that we've updated the EEPROM memory, lets request a refresh of the shadow memory.
@@ -890,22 +1067,41 @@ void DS2764::dspSetSleepMode(int aiValue) {
     
     // Recall EEPROM Block 1 Data to Shadow RAM
     Wire.beginTransmission(DS_ADDRESS);
-    Wire.send(DS_FUNCTION_REGISTER);          // Write value to Function Command Address
+
+#if defined(ARDUINO) && ARDUINO >= 100
+	Wire.write(DS_FUNCTION_REGISTER);          // Write value to Function Command Address
+    Wire.write(DS_RECALL_EEPROM_BLK_1);        // Request refresh of Block 1 Shadow RAM from EEPROM
+#else
+	Wire.send(DS_FUNCTION_REGISTER);          // Write value to Function Command Address
     Wire.send(DS_RECALL_EEPROM_BLK_1);        // Request refresh of Block 1 Shadow RAM from EEPROM
-    Wire.endTransmission();
+#endif
+
+	Wire.endTransmission();
     delay(1000);
         
         
     // Read second byte of Block 1 Shadow RAM
     Wire.beginTransmission(DS_ADDRESS);
-    Wire.send(DS_SLEEP_MODE_ADDR);
-    Wire.endTransmission();
+
+#if defined(ARDUINO) && ARDUINO >= 100
+	Wire.write(DS_SLEEP_MODE_ADDR);
+#else
+	Wire.send(DS_SLEEP_MODE_ADDR);
+#endif
+	
+	Wire.endTransmission();
     delay(100);
     Wire.requestFrom(DS_ADDRESS, 1);
 
     if(1 <= Wire.available()) { 
-        iShadow = Wire.receive();
-        //Serial.print("Address 31h - Shadow After Update and Refresh Block 1 Byte 1: ");
+
+#if defined(ARDUINO) && ARDUINO >= 100
+		iShadow = Wire.read();
+#else
+		iShadow = Wire.receive();
+#endif
+
+		//Serial.print("Address 31h - Shadow After Update and Refresh Block 1 Byte 1: ");
         //Serial.println(iShadow, HEX);
         }
     //else {

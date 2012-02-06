@@ -1,5 +1,11 @@
-//DS2764.h	
-#include <WProgram.h>
+//DS2764.h
+// DMT 2/5/2012 - Arduino 1.0 Compatibility
+
+#if defined(ARDUINO) && ARDUINO >= 100
+#include "Arduino.h"
+#else
+#include "WProgram.h"
+#endif
 
 
 // constants
