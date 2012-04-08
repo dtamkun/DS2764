@@ -1,5 +1,8 @@
 //DS2764.h
 // DMT 2/5/2012 - Arduino 1.0 Compatibility
+// DMT 4/8/2012 - Added dsReloadBatteryCapacity so caller can request a refresh of 
+//                battery capacity outside the constructor and without including it in
+//                every dsRefresh call.
 
 #if defined(ARDUINO) && ARDUINO >= 100
 #include "Arduino.h"
@@ -114,6 +117,7 @@ class DS2764 {
 	void    dsSetPowerSwitchOn(void);
 	void	dsEnableSleep(void);
 	void	dsDisableSleep(void);
+	void    dsReloadBatteryCapacity(void);
 		
 		
 	private:

@@ -1,5 +1,8 @@
 // DS2764.cpp
 // DMT 2/5/2012 - Replacing Wire.send and Wire.receive with Wire.write and Wire.read for Arduino 1.0 Compatibility
+// DMT 4/8/2012 - Added dsReloadBatteryCapacity so caller can request a refresh of 
+//                battery capacity outside the constructor and without including it in
+//                every dsRefresh call.
 #include <Wire.h>
 #include <avr/pgmspace.h>
 
@@ -405,10 +408,12 @@ void DS2764::dsSetPowerSwitchOn(void) {
 
 
 
+void DS2764::dsReloadBatteryCapacity() {
+	dspGetBatteryCapacity();
+}
 
 
 // private methods
-
 
 
 
